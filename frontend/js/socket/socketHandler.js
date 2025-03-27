@@ -37,4 +37,18 @@ export function setupSocketHandlers(currentChatIdRef, onStatusChange) {
       }
     }
   });
+
+  socket.on('message_read', (chatId) => {
+    const item = document.querySelector(`.chat-list-item[data-chat-id="${chatId}"]`);
+    if (item) {
+      const badge = item.querySelector('.badge');
+      if (badge) badge.remove();
+
+      const nameEl = item.querySelector('.chat-name');
+      if (nameEl) {
+        nameEl.classList.remove('fw-bold');
+        nameEl.classList.add('fw-normal');
+      }
+    }
+  });
 }

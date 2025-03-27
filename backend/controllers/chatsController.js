@@ -62,7 +62,8 @@ router.get('/', async (req, res) => {
           timestamp: lastMessage?.timestamp
             ? new Date(lastMessage.timestamp * 1000)
             : null,
-          unreadCount: chat.unreadCount || 0
+            unreadCount:
+            req.query.read === chatId ? 0 : (chat.unreadCount || 0)          
         };
       })
     );
@@ -79,13 +80,15 @@ router.get('/', async (req, res) => {
 router.patch('/:id/read', async (req, res) => {
   try {
     const client = getClient();
+
     if (!client || !isReady()) {
       return res.status(503).json({ error: 'Client non pronto' });
     }
 
     const chat = await client.getChatById(req.params.id);
-    if (chat?.markSeen) {
-      await chat.markSeen();
+
+    if (chat) {
+      await chat.sendSeen(); // ✅ metodo corretto di whatsapp-web.js
       return res.json({ success: true });
     } else {
       return res.status(404).json({ error: 'Chat non trovata' });
@@ -95,5 +98,6 @@ router.patch('/:id/read', async (req, res) => {
     res.status(500).json({ error: 'Errore interno' });
   }
 });
+
 
 module.exports = router;

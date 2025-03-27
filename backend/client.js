@@ -2,6 +2,7 @@ const { Client, LocalAuth } = require('whatsapp-web.js');
 const qrcode = require('qrcode');
 const fs = require('fs');
 const path = require('path');
+const open = require('open').default;
 
 let clientInstance = null;
 let isClientReady = false;
@@ -32,6 +33,11 @@ function setupClient(io) {
     const qrDataUrl = await qrcode.toDataURL(qr);
     console.log('📲 QR code generato');
     io.emit('qr', qrDataUrl);
+
+    // 🔓 Apri automaticamente la pagina per scansionare il QR
+    setTimeout(() => {
+      open('http://localhost:3000');
+    }, 1000);
   });
 
   clientInstance.on('authenticated', () => {
@@ -42,6 +48,11 @@ function setupClient(io) {
     console.log('✅ Client WhatsApp pronto');
     isClientReady = true;
     io.emit('state_change', 'CONNECTED');
+
+     // ✅ Se siamo qui, il client è pronto e già autenticato → apri direttamente la chat
+    setTimeout(() => {
+      open('http://localhost:3000/chat.html');
+    }, 1000);
   });
 
   clientInstance.on('auth_failure', (msg) => {
@@ -58,22 +69,36 @@ function setupClient(io) {
   clientInstance.on('message', async (message) => {
     try {
       const media = message.hasMedia ? await message.downloadMedia() : null;
-
+  
+      const chatId = message.fromMe ? message.to : message.from;
+  
+      // ✅ Ottieni la chat associata al messaggio
+      const chat = await message.getChat();
+  
+      // ✅ Se il messaggio non è nostro, segniamo la chat come letta
+      if (!message.fromMe) {
+        await chat.sendSeen(); // Segna come letti i messaggi
+        io.emit('message_read', chatId); // 🔁 Invia feedback realtime al frontend
+      }
+  
+      // ✅ Invia comunque il messaggio al frontend per essere mostrato
       io.emit('message', {
         id: message.id._serialized,
         from: message.from,
         to: message.to,
-        chatId: message.fromMe ? message.to : message.from,
+        chatId,
         body: message.body,
         caption: message.caption,
         timestamp: message.timestamp,
         fromMe: message.fromMe,
         media
       });
+  
     } catch (err) {
       console.error('❌ Errore gestione message:', err);
     }
   });
+  
 
   // ✅ Check di prontezza post-inizializzazione (se già autenticato)
   const waitForReady = setInterval(() => {

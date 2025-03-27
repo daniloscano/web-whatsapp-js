@@ -31,6 +31,11 @@ if (messageInput) setupEmojiPicker(messageInput);
 
 setupSocketHandlers(currentChatIdRef, (status) => {
   if (chatStatus) chatStatus.textContent = status;
+}, (message) => {
+  if (typeof window.updateChatPreview === 'function') {
+    const previewText = message.body || message.caption || '[media]';
+    window.updateChatPreview(message.chatId, previewText);
+  }
 });
 
 async function loadContacts() {
@@ -52,10 +57,14 @@ async function loadOperators() {
 }
 
 window.refreshChatList = async () => {
-  const chats = await fetchChats();
+  const readParam = currentChatIdRef.value ? `?read=${encodeURIComponent(currentChatIdRef.value)}` : '';
+  const res = await fetch(`/api/chats${readParam}`);
+  const chats = await res.json();
+
   fullChatList = chats;
   renderChatList(fullChatList, onChatClick, searchInput?.value || '');
 };
+
 
 async function loadChats(retryCount = 0) {
   try {
@@ -102,14 +111,15 @@ async function loadChats(retryCount = 0) {
   }
 }
 
-
 async function onChatClick(chatId, name) {
   currentChatId = chatId;
   currentChatIdRef.value = chatId;
 
   try {
-    await fetch(`/api/chats/${chatId}/read`, { method: 'PATCH' });
-    refreshChatList();
+    const res = await fetch(`/api/chats/${chatId}/read`, { method: 'PATCH' });
+    if (res.ok) {
+      await refreshChatList(); // aspetta l'aggiornamento lato server
+    }
   } catch (err) {
     console.warn('Errore nel reset unreadCount:', err);
   }
@@ -206,13 +216,17 @@ window.updateChatPreview = (chatId, lastMessage) => {
   const itemList = document.querySelectorAll('#chat-items li');
 
   itemList.forEach((item) => {
-    const title = item.querySelector('.fw-bold, .fw-normal');
-    const idFromItem = item.onclick?.toString()?.match(/onClick\(.*?'(.*?)'/)?.[1];
+    const idAttr = item.getAttribute('data-chat-id');
+    if (idAttr === chatId) {
+      const preview = item.querySelector('.last-message');
+      if (preview) {
+        preview.textContent = lastMessage || '...';
+      }
 
-    if (idFromItem === chatId) {
-      const small = item.querySelector('small.text-muted');
-      if (small) {
-        small.textContent = lastMessage || '...';
+      // Sposta in cima
+      const chatList = document.getElementById('chat-items');
+      if (chatList) {
+        chatList.prepend(item);
       }
     }
   });

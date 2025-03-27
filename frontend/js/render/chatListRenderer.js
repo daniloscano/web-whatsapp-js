@@ -14,18 +14,20 @@ export function renderChatList(chats, onClick, searchTerm = '') {
 
   filtered.forEach(chat => {
     const item = document.createElement('li');
-    item.className = 'list-group-item d-flex justify-content-between align-items-start cursor-pointer';
+    item.className = 'chat-list-item list-group-item d-flex justify-content-between align-items-start cursor-pointer';
+    item.dataset.chatId = chat.id; // ✅ importante per update dinamico
+
     item.onclick = () => onClick(chat.id, chat.name);
 
-    const nameClass = chat.unreadCount > 0 ? 'fw-bold' : '';
-    const mainText = `<div class="${nameClass}">${chat.name || chat.id}</div>`;
+    const nameClass = chat.unreadCount > 0 ? 'fw-bold' : 'fw-normal';
+    const mainText = `<div class="chat-name ${nameClass}">${chat.name || chat.id}</div>`;
     const subText = chat.lastMessage || 'Nessun messaggio';
-    const operator = chat.operator ? `👤 ${chat.operator}` : '';
+    const operator = chat.operator ? ` ${chat.operator}` : '';
 
     item.innerHTML = `
       <div class="ms-2 me-auto">
         ${mainText}
-        <small class="text-muted">${subText}</small><br />
+        <div class="last-message text-muted small">${subText}</div>
         ${operator ? `<small class="text-secondary">${operator}</small>` : ''}
       </div>
       ${chat.unreadCount > 0
