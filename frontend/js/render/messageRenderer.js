@@ -72,7 +72,32 @@ export function renderMessage(msg) {
   }
 
   // 🕒 Timestamp
-  bubble.innerHTML += `<div class="message-time">${formatTimestamp(msg.timestamp)}</div>`;
+  const timeText = formatTimestamp(msg.timestamp);
+
+  // ✅ Genera HTML tick solo per messaggi inviati
+  let ackIcon = '';
+  if (msg.fromMe) {
+    switch (msg.ack) {
+      case 1:
+        ackIcon = '✔️';
+        break;
+      case 2:
+        ackIcon = '✔️✔️';
+        break;
+      case 3:
+        ackIcon = '✔️✔️'; // opzionalmente colorabile
+        break;
+      default:
+        ackIcon = '🕓';
+    }
+  }
+
+  bubble.innerHTML += `
+    <div class="message-time d-flex justify-content-between align-items-center">
+      <span>${timeText}</span>
+      ${ackIcon && msg.id ? `<span class="ms-2 message-status" data-id="${msg.id}">${ackIcon}</span>` : ''}
+    </div>
+  `;
 
   container.appendChild(bubble);
 }
@@ -105,4 +130,30 @@ document.addEventListener('click', (e) => {
 
   const modal = new bootstrap.Modal(document.getElementById('mediaModal'));
   modal.show();
+});
+
+const socket = io();
+
+socket.on('message_ack', ({ id, ack }) => {
+  const statusEl = document.querySelector(`.message-status[data-id="${id}"]`);
+  if (!statusEl) return;
+
+  let icon = '';
+  switch (ack) {
+    case 1:
+      icon = '✔️';
+      break;
+    case 2:
+      icon = '✔️✔️';
+      break;
+    case 3:
+      icon = '✔️✔️';
+      break;
+    default:
+      icon = '🕓';
+  }
+
+  console.log('🔁 message_ack update:', id, '→', ack);
+
+  statusEl.textContent = icon;
 });

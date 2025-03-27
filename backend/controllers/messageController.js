@@ -24,7 +24,7 @@ router.get('/:chatId', async (req, res) => {
       const isMedia = msg.hasMedia && msg._data?.mimetype;
 
       const base = {
-        id: msg.id.id,
+        id: msg.id._serialized,
         fromMe: msg.fromMe,
         body: msg.body,
         caption: msg.caption,

@@ -118,7 +118,8 @@ function setupClient(io) {
         timestamp: message.timestamp,
         fromMe: message.fromMe,
         media,
-        mediaUrl
+        mediaUrl,
+        ack: message.ack
       });
   
     } catch (err) {
@@ -136,6 +137,21 @@ function setupClient(io) {
       clearInterval(waitForReady);
     }
   }, 1000);
+
+   // 🔄 Notifica cambio stato messaggio (acknowledgment)
+   clientInstance.on('message_ack', (msg, ack) => {
+    if (!msg || !msg.id) return;
+  
+    const messageId = msg.id._serialized;
+    console.log(`🔁 Stato messaggio aggiornato: ${messageId} → ack ${ack}`);
+  
+    if (ioRef) {
+      ioRef.emit('message_ack', {
+        id: messageId,
+        ack
+      });
+    }
+  });
 
   clientInstance.initialize();
   console.log('🚀 clientInstance.initialize() chiamato');
