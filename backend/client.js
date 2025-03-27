@@ -68,7 +68,33 @@ function setupClient(io) {
   // ✅ Invio messaggio in tempo reale
   clientInstance.on('message', async (message) => {
     try {
-      const media = message.hasMedia ? await message.downloadMedia() : null;
+      let media = null;
+      let mediaUrl = null;
+
+      if (message.hasMedia) {
+        const downloaded = await message.downloadMedia();
+      
+        if (downloaded) {
+          const ext = downloaded.mimetype.split('/')[1] || 'bin';
+          const filename = `media-${message.timestamp}.${ext}`;
+          const uploadPath = path.join(__dirname, 'uploads', filename);
+      
+          if (!fs.existsSync(uploadPath)) {
+            fs.writeFileSync(uploadPath, downloaded.data, 'base64');
+            console.log(`💾 Media salvato: ${filename}`);
+          } else {
+            console.log(`✅ Media già esistente: ${filename}`);
+          }
+      
+          mediaUrl = `/media/${filename}`;
+      
+          media = {
+            mimetype: downloaded.mimetype,
+            filename: downloaded.filename || filename
+          };
+        }
+      }
+      
   
       const chatId = message.fromMe ? message.to : message.from;
   
@@ -91,7 +117,8 @@ function setupClient(io) {
         caption: message.caption,
         timestamp: message.timestamp,
         fromMe: message.fromMe,
-        media
+        media,
+        mediaUrl
       });
   
     } catch (err) {

@@ -19,6 +19,7 @@ const io = socketIO(server, {
 app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
+app.use('/media', express.static(path.join(__dirname, 'uploads')));
 
 // ✅ API
 app.use('/api/chats', chatsController);

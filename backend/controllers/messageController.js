@@ -20,12 +20,49 @@ router.get('/:chatId', async (req, res) => {
 
     await chat.sendSeen();
 
-    const formattedMessages = messages.map(msg => ({
-      id: msg.id.id,
-      fromMe: msg.fromMe,
-      body: msg.body,
-      timestamp: msg.timestamp,
-      type: msg.type
+    const formattedMessages = await Promise.all(messages.map(async (msg) => {
+      const isMedia = msg.hasMedia && msg._data?.mimetype;
+
+      const base = {
+        id: msg.id.id,
+        fromMe: msg.fromMe,
+        body: msg.body,
+        caption: msg.caption,
+        timestamp: msg.timestamp,
+        type: msg.type
+      };
+
+      if (isMedia) {
+        const ext = msg._data.mimetype.split('/')[1] || 'bin';
+        const filename = `media-${msg.timestamp}.${ext}`;
+        const mediaPath = path.join(__dirname, '..', 'uploads', filename);
+
+        // Scarica e salva il media se manca
+        if (!fs.existsSync(mediaPath)) {
+          try {
+            const downloaded = await msg.downloadMedia();
+            if (downloaded?.data) {
+              fs.writeFileSync(mediaPath, downloaded.data, 'base64');
+              console.log('💾 Media scaricato e salvato:', filename);
+            } else {
+              console.warn('⚠️ Media non scaricabile per', msg.id.id);
+            }
+          } catch (err) {
+            console.error('❌ Errore download media:', err.message);
+          }
+        }
+
+        if (fs.existsSync(mediaPath)) {
+          base.mediaUrl = `/media/${filename}`;
+          base.media = {
+            mimetype: msg._data.mimetype,
+            filename: msg._data.filename || filename
+          };
+        }
+        
+      }
+
+      return base;
     }));
 
     res.json(formattedMessages);

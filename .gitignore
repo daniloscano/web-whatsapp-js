@@ -2,9 +2,14 @@
 backend/node_modules/
 
 # WhatsApp Web JS session and cache
+.wwebjs_auth/
+.wwebjs_cache/
 backend/.wwebjs_auth/
 backend/.wwebjs_cache/
 
 # Package metadata (da non inviare al remoto)
 backend/package.json
 backend/package-lock.json
+
+#Backend uploads directory
+backend/uploads/
