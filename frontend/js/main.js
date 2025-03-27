@@ -15,6 +15,13 @@ const loaderOverlay = document.getElementById('loader-overlay');
 const chatIdentifier = document.getElementById('chat-identifier');
 const searchInput = document.getElementById('search-input');
 
+const editContactBtn = document.getElementById('edit-contact-btn');
+const editContactForm = document.getElementById('edit-contact-form');
+const contactNameInput = document.getElementById('contact-name-input');
+const saveContactBtn = document.getElementById('save-contact-btn');
+const cancelContactBtn = document.getElementById('cancel-contact-btn');
+const deleteContactBtn = document.getElementById('delete-contact-btn');
+
 const editOperatorBtn = document.getElementById('edit-operator-btn');
 const editOperatorForm = document.getElementById('edit-operator-form');
 const operatorNameInput = document.getElementById('operator-name-input');
@@ -65,7 +72,6 @@ window.refreshChatList = async () => {
   renderChatList(fullChatList, onChatClick, searchInput?.value || '');
 };
 
-
 async function loadChats(retryCount = 0) {
   try {
     const chats = await fetchChats();
@@ -112,6 +118,9 @@ async function loadChats(retryCount = 0) {
 }
 
 async function onChatClick(chatId, name) {
+  contactNameInput.value = contacts[chatId] || '';
+  editContactForm?.classList.add('d-none');
+
   currentChatId = chatId;
   currentChatIdRef.value = chatId;
 
@@ -231,5 +240,64 @@ window.updateChatPreview = (chatId, lastMessage) => {
     }
   });
 };
+
+if (editContactBtn) {
+  editContactBtn.addEventListener('click', () => {
+    editContactForm?.classList.toggle('d-none');
+  });
+}
+
+if (saveContactBtn) {
+  saveContactBtn.addEventListener('click', async () => {
+    const name = contactNameInput?.value.trim();
+    if (!name || !currentChatId) return;
+
+    const res = await fetch('/api/contacts', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: currentChatId, name })
+    });
+
+    if (res.ok) {
+      contacts[currentChatId] = name;
+      chatTitle.textContent = name; // 🔄 aggiorna titolo in tempo reale
+      editContactForm?.classList.add('d-none');
+      await refreshChatList();
+    }
+  });
+}
+
+if (cancelContactBtn) {
+  cancelContactBtn.addEventListener('click', () => {
+    contactNameInput.value = contacts[currentChatId] || '';
+    editContactForm?.classList.add('d-none');
+  });
+}
+
+if (deleteContactBtn) {
+  deleteContactBtn.addEventListener('click', async () => {
+    if (!currentChatId) return;
+
+    const confirmed = confirm('Vuoi davvero rimuovere questo contatto dalla rubrica?');
+    if (!confirmed) return;
+
+    const res = await fetch(`/api/contacts/${currentChatId}`, {
+      method: 'DELETE'
+    });
+
+    if (res.ok) {
+      delete contacts[currentChatId];
+
+      // Ripristina il nome di fallback (es. numero o nome chat originario)
+      const fallbackName = currentChatId.split('@')[0];
+      chatTitle.textContent = fallbackName;
+
+      editContactForm?.classList.add('d-none');
+      contactNameInput.value = '';
+
+      await refreshChatList();
+    }
+  });
+}
 
 loadChats();
