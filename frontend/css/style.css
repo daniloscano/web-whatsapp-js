@@ -30,7 +30,7 @@ body, html {
 #messages {
   flex: 1;
   overflow-y: auto;
-  padding: 1rem;
+  padding: 0.4rem 1rem;
   background-color: #fafafa;
 }
 
@@ -101,13 +101,14 @@ body, html {
 
 /* Ogni bubble viene allineata in base alla classe "me" o "them" */
 .message {
+  min-width: 176px;
   max-width: 80%;
-  padding: 0.5rem 0.75rem;
+  padding: 0.6rem;
   margin-bottom: 0.5rem;
   border-radius: 1rem;
   word-wrap: break-word;
-  white-space: pre-wrap;
-  font-size: 0.95rem;
+  white-space: wrap;
+  font-size: 0.9rem;
   display: inline-block;
 }
 
@@ -124,4 +125,16 @@ body, html {
   border: 1px solid #ddd;
   align-self: flex-start;
   text-align: left;
+}
+
+.message-time, .message-status {
+  font-size: 0.6rem;
+}
+
+.message-time {
+  margin-top: 1rem;
+}
+
+.them .message-time {
+  justify-content: start !important;
 }

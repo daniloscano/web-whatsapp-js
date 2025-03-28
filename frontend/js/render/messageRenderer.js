@@ -38,7 +38,7 @@ export function renderMessage(msg) {
         <img 
           src="${src}" 
           alt="media" 
-          class="img-fluid rounded mb-2 preview-media" 
+          class="img-fluid rounded mb-0 preview-media" 
           style="max-width: 200px; cursor: pointer;" 
           data-type="image" 
           data-src="${src}"
@@ -47,7 +47,7 @@ export function renderMessage(msg) {
     } else {
       const fileName = msg.media.filename || 'allegato';
       bubble.innerHTML += `
-        <div class="mb-2">
+        <div class="mb-0">
           📎 <a 
             href="${src}" 
             class="text-decoration-none text-primary preview-media" 
@@ -95,9 +95,9 @@ export function renderMessage(msg) {
   }
 
   bubble.innerHTML += `
-    <div class="message-time d-flex justify-content-between align-items-center">
+    <div class="message-time d-flex justify-content-end align-items-center gap-2">
       <span>${timeText}</span>
-      ${ackIcon && msg.id ? `<span class="ms-2 message-status" data-id="${rawId}">${ackIcon}</span>` : ''}
+      ${ackIcon && msg.id ? `<span class="my-0 message-status" data-id="${rawId}">${ackIcon}</span>` : ''}
     </div>
   `;
 
