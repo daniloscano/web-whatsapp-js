@@ -121,5 +121,24 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
+// ✅ PATCH - Archivia o Riattiva una chat
+router.patch('/:id/archive', async (req, res) => {
+  try {
+    const client = getClient();
+    const chat = await client.getChatById(req.params.id);
+
+    if (!chat) {
+      return res.status(404).json({ error: 'Chat non trovata' });
+    }
+
+    const newState = !chat.isArchived;
+    await chat.archive(newState);
+
+    res.json({ success: true, archived: newState });
+  } catch (err) {
+    console.error('❌ Errore archiviazione chat:', err);
+    res.status(500).json({ error: 'Errore durante archiviazione/riattivazione' });
+  }
+});
 
 module.exports = router;

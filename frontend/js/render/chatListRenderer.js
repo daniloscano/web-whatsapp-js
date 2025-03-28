@@ -38,7 +38,12 @@ export function renderChatList(chats, onClick, searchTerm = '', container = null
           <div class="last-message text-muted small">${subText}</div>
           ${operator ? `<small class="text-secondary">${operator}</small>` : ''}
         </div>
-        <button class="btn btn-sm btn-link text-danger delete-chat-btn d-none" data-chat-id="${chat.id}" title="Elimina chat">🗑️</button>
+        <div class="d-flex flex-row align-items-center gap-1 ms-2 w-25">
+          <button class="btn btn-sm btn-link text-danger delete-chat-btn d-none" data-chat-id="${chat.id}" title="Elimina chat">🗑️</button>
+          <button class="btn btn-sm btn-link archive-chat-btn d-none" data-chat-id="${chat.id}" title="${chat.archived ? 'Riattiva' : 'Archivia'} chat">
+            ${chat.archived ? '📤' : '📥'}
+          </button>
+        </div>
       </div>
       ${chat.unreadCount > 0
         ? `<span class="badge bg-primary rounded-pill">${chat.unreadCount}</span>`
@@ -46,12 +51,13 @@ export function renderChatList(chats, onClick, searchTerm = '', container = null
     `;
 
     item.addEventListener('mouseenter', () => {
-      const delBtn = item.querySelector('.delete-chat-btn');
-      if (delBtn) delBtn.classList.remove('d-none');
+      item.querySelector('.delete-chat-btn')?.classList.remove('d-none');
+      item.querySelector('.archive-chat-btn')?.classList.remove('d-none');
     });
+
     item.addEventListener('mouseleave', () => {
-      const delBtn = item.querySelector('.delete-chat-btn');
-      if (delBtn) delBtn.classList.add('d-none');
+      item.querySelector('.delete-chat-btn')?.classList.add('d-none');
+      item.querySelector('.archive-chat-btn')?.classList.add('d-none');
     });
 
     item.querySelector('.delete-chat-btn')?.addEventListener('click', async (e) => {
@@ -69,6 +75,26 @@ export function renderChatList(chats, onClick, searchTerm = '', container = null
           console.error('Errore delete:', err);
           alert('Errore nella comunicazione con il server.');
         }
+      }
+    });
+
+    item.querySelector('.archive-chat-btn')?.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const chatId = e.currentTarget.dataset.chatId;
+
+      try {
+        const res = await fetch(`/api/chats/${chatId}/archive`, {
+          method: 'PATCH'
+        });
+
+        if (res.ok) {
+          item.remove(); // 🔄 Rimuove dalla lista corrente
+        } else {
+          alert('Errore nell\'aggiornamento dello stato archivio.');
+        }
+      } catch (err) {
+        console.error('Errore archiviazione:', err);
+        alert('Errore nella comunicazione con il server.');
       }
     });
 
