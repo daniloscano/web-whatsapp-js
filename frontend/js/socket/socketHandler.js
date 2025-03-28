@@ -1,7 +1,8 @@
 import { renderMessage } from '../render/messageRenderer.js';
 import { scrollToBottom } from '../ui/uiUtils.js';
+import { updateMessageAckStatus } from '../render/messageRenderer.js';
 
-export function setupSocketHandlers(currentChatIdRef, onStatusChange) {
+export function setupSocketHandlers(currentChatIdRef, onStatusChange, onMessageReceived) {
   const socket = io();
 
   socket.on('state_change', (state) => {
@@ -23,7 +24,9 @@ export function setupSocketHandlers(currentChatIdRef, onStatusChange) {
         fromMe: msg.fromMe || false,
         body: msg.body || msg.caption || '',
         media: msg.media || null,
-        timestamp: msg.timestamp || Date.now() / 1000
+        mediaUrl: msg.mediaUrl,
+        timestamp: msg.timestamp || Date.now() / 1000,
+        ack: msg.ack
       });
       scrollToBottom();
 
@@ -36,19 +39,17 @@ export function setupSocketHandlers(currentChatIdRef, onStatusChange) {
         window.refreshChatList();
       }
     }
+
+    if (typeof onMessageReceived === 'function') {
+      onMessageReceived(msg);
+    }
   });
 
-  socket.on('message_read', (chatId) => {
-    const item = document.querySelector(`.chat-list-item[data-chat-id="${chatId}"]`);
-    if (item) {
-      const badge = item.querySelector('.badge');
-      if (badge) badge.remove();
-
-      const nameEl = item.querySelector('.chat-name');
-      if (nameEl) {
-        nameEl.classList.remove('fw-bold');
-        nameEl.classList.add('fw-normal');
-      }
-    }
+  // ✅ Nuovo: gestione ack in realtime
+  socket.on('message_ack', ({ id, ack }) => {
+    const event = new CustomEvent('messageAckUpdate', { detail: { id, ack } });
+    window.dispatchEvent(event);
+    console.log('📥 message_ack ricevuto:', id, ack);
+    updateMessageAckStatus(id, ack);
   });
 }

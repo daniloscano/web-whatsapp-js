@@ -23,7 +23,9 @@ export function renderMessage(msg) {
   bubble.classList.add('message-bubble');
   bubble.classList.add(msg.fromMe ? 'message-out' : 'message-in');
 
-  bubble.dataset.id = msg.id;
+  const rawId = msg.id?.split('_').pop(); // estrae solo l'ID finale
+  bubble.dataset.id = rawId;
+
 
   // 📎 Gestione media (immagini o altri file)
   if (msg.media) {
@@ -95,7 +97,7 @@ export function renderMessage(msg) {
   bubble.innerHTML += `
     <div class="message-time d-flex justify-content-between align-items-center">
       <span>${timeText}</span>
-      ${ackIcon && msg.id ? `<span class="ms-2 message-status" data-id="${msg.id}">${ackIcon}</span>` : ''}
+      ${ackIcon && msg.id ? `<span class="ms-2 message-status" data-id="${rawId}">${ackIcon}</span>` : ''}
     </div>
   `;
 
@@ -132,28 +134,50 @@ document.addEventListener('click', (e) => {
   modal.show();
 });
 
-const socket = io();
+window.addEventListener('messageAckUpdate', (e) => {
+  console.log('🎯 Evento messageAckUpdate ricevuto:', e.detail);
 
-socket.on('message_ack', ({ id, ack }) => {
+  const { id, ack } = e.detail;
+  const allStatusEls = document.querySelectorAll('.message-status');
+for (const el of allStatusEls) {
+  if (
+    el.dataset.id === id ||
+    el.dataset.id === id?.id ||
+    el.dataset.id === id?.replace(/^true_/, '').replace(/^false_/, '')
+  ) {
+    let icon = '';
+    switch (ack) {
+      case 1:
+        icon = '✔️';
+        break;
+      case 2:
+        icon = '✔️✔️';
+        break;
+      case 3:
+        icon = '✔️✔️'; // colorabile se vuoi
+        break;
+      default:
+        icon = '🕓';
+    }
+
+    console.log('🔁 message_ack update:', id, '→', ack);
+    el.textContent = icon;
+    break;
+  }
+}});
+
+export function updateMessageAckStatus(id, ack) {
   const statusEl = document.querySelector(`.message-status[data-id="${id}"]`);
-  if (!statusEl) return;
-
-  let icon = '';
-  switch (ack) {
-    case 1:
-      icon = '✔️';
-      break;
-    case 2:
-      icon = '✔️✔️';
-      break;
-    case 3:
-      icon = '✔️✔️';
-      break;
-    default:
-      icon = '🕓';
+  if (!statusEl) {
+    console.warn(`⛔️ Impossibile trovare message-status con data-id=${id}`);
+    return;
   }
 
-  console.log('🔁 message_ack update:', id, '→', ack);
+  let icon = '🕓'; // default
+  if (ack === 1) icon = '✔️';
+  else if (ack === 2) icon = '✔️✔️';
+  else if (ack === 3) icon = '☑️☑️'; // opzionalmente colorabile
 
+  console.log('🔁 Aggiorno ACK nel DOM:', id, '→', ack);
   statusEl.textContent = icon;
-});
+}

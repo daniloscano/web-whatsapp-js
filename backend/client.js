@@ -140,18 +140,14 @@ function setupClient(io) {
 
    // 🔄 Notifica cambio stato messaggio (acknowledgment)
    clientInstance.on('message_ack', (msg, ack) => {
-    if (!msg || !msg.id) return;
-  
-    const messageId = msg.id._serialized;
-    console.log(`🔁 Stato messaggio aggiornato: ${messageId} → ack ${ack}`);
-  
-    if (ioRef) {
-      ioRef.emit('message_ack', {
-        id: messageId,
-        ack
-      });
+    if (msg.fromMe && msg.id) {
+      const cleanId = msg.id.id; // ✅ Solo la parte finale compatibile con data-id del DOM
+      console.log('📬 message_ack:', cleanId, '→', ack);
+      ioRef?.emit('message_ack', { id: cleanId, ack });
     }
   });
+  
+  
 
   clientInstance.initialize();
   console.log('🚀 clientInstance.initialize() chiamato');
