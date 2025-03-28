@@ -29,7 +29,8 @@ router.get('/:chatId', async (req, res) => {
         body: msg.body,
         caption: msg.caption,
         timestamp: msg.timestamp,
-        type: msg.type
+        type: msg.type,
+        ack: msg.ack
       };
 
       if (isMedia) {

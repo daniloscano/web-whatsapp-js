@@ -14,6 +14,8 @@ const messageForm = document.getElementById('message-form');
 const loaderOverlay = document.getElementById('loader-overlay');
 const chatIdentifier = document.getElementById('chat-identifier');
 const searchInput = document.getElementById('search-input');
+const activeChatListEl = document.getElementById('chat-items');
+const archivedChatListEl = document.getElementById('archived-chat-items');
 
 const editContactBtn = document.getElementById('edit-contact-btn');
 const editContactForm = document.getElementById('edit-contact-form');
@@ -27,6 +29,12 @@ const editOperatorForm = document.getElementById('edit-operator-form');
 const operatorNameInput = document.getElementById('operator-name-input');
 const saveOperatorBtn = document.getElementById('save-operator-btn');
 const removeOperatorBtn = document.getElementById('remove-operator-btn');
+
+const newChatBtn = document.getElementById('new-chat-btn');
+const newChatForm = document.getElementById('new-chat-form');
+const newChatNumberInput = document.getElementById('new-chat-number');
+const newChatNameInput = document.getElementById('new-chat-name');
+
 
 let currentChatId = null;
 const currentChatIdRef = { value: null };
@@ -63,13 +71,27 @@ async function loadOperators() {
   }
 }
 
-window.refreshChatList = async () => {
-  const readParam = currentChatIdRef.value ? `?read=${encodeURIComponent(currentChatIdRef.value)}` : '';
-  const res = await fetch(`/api/chats${readParam}`);
-  const chats = await res.json();
+async function loadChatList(archived = false) {
+  try {
+    const readParam = currentChatIdRef.value ? `&read=${encodeURIComponent(currentChatIdRef.value)}` : '';
+    const res = await fetch(`/api/chats?archived=${archived}${readParam}`);
+    const chats = await res.json();
 
-  fullChatList = chats;
-  renderChatList(fullChatList, onChatClick, searchInput?.value || '');
+    const targetEl = archived ? archivedChatListEl : activeChatListEl;
+
+    renderChatList(chats, onChatClick, searchInput?.value || '', targetEl);
+
+    if (!archived) {
+      fullChatList = chats;
+    }
+  } catch (err) {
+    console.error(`❌ Errore caricamento chat ${archived ? '(archiviate)' : '(attive)'}:`, err);
+  }
+}
+
+window.refreshChatList = async () => {
+  await loadChatList(false); // chat attive
+  await loadChatList(true);  // archiviate
 };
 
 async function loadChats(retryCount = 0) {
@@ -85,8 +107,7 @@ async function loadChats(retryCount = 0) {
         console.log(`🔁 Retry ${retryCount + 1}`);
         setTimeout(() => loadChats(retryCount + 1), 1000);
       } else {
-        if (chatTitle) chatTitle.textContent = 'Impossibile connettersi';
-        console.error('❌ Timeout caricamento chat');
+        chatTitle.textContent = 'Impossibile connettersi';
         if (loaderOverlay) loaderOverlay.classList.add('d-none');
       }
 
@@ -95,27 +116,25 @@ async function loadChats(retryCount = 0) {
 
     if (!Array.isArray(chats)) {
       console.error('❌ Dati non validi da /api/chats:', chats);
-      if (chatTitle) chatTitle.textContent = 'Errore caricamento chat';
-      if (loaderOverlay) loaderOverlay.classList.add('hidden');
+      chatTitle.textContent = 'Errore caricamento chat';
+      loaderOverlay?.classList.add('hidden');
       return;
     }
 
     await loadContacts();
     await loadOperators();
 
-    fullChatList = chats;
-    renderChatList(fullChatList, onChatClick, searchInput?.value || '');
+    await loadChatList(false); // attive
+    await loadChatList(true);  // archiviate
 
-    if (loaderOverlay) {
-      loaderOverlay.classList.add('hidden');
-    }
-
+    loaderOverlay?.classList.add('d-none');
   } catch (err) {
     console.error('❌ Errore loadChats:', err);
-    if (chatTitle) chatTitle.textContent = 'Errore caricamento chat';
-    if (loaderOverlay) loaderOverlay.classList.add('hidden');
+    chatTitle.textContent = 'Errore caricamento chat';
+    loaderOverlay?.classList.add('hidden');
   }
 }
+
 
 async function onChatClick(chatId, name) {
   contactNameInput.value = contacts[chatId] || '';
@@ -217,7 +236,8 @@ if (removeOperatorBtn) {
 
 if (searchInput) {
   searchInput.addEventListener('input', () => {
-    renderChatList(fullChatList, onChatClick, searchInput.value);
+    renderChatList(fullChatList.filter(c => !c.archived), onChatClick, searchInput?.value || '', activeChatListEl);
+    renderChatList(fullChatList.filter(c => c.archived), onChatClick, searchInput?.value || '', archivedChatListEl);
   });
 }
 
@@ -297,6 +317,47 @@ if (deleteContactBtn) {
 
       await refreshChatList();
     }
+  });
+}
+
+if (newChatBtn) {
+  newChatBtn.addEventListener('click', () => {
+    newChatNumberInput.value = '';
+    newChatNameInput.value = '';
+    const modal = new bootstrap.Modal(document.getElementById('newChatModal'));
+    modal.show();
+  });
+}
+
+if (newChatForm) {
+  newChatForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+
+    const rawNumber = newChatNumberInput.value.trim();
+    const name = newChatNameInput.value.trim();
+    const modalEl = document.getElementById('newChatModal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+
+    if (!rawNumber.match(/^\d{8,15}$/)) {
+      alert('Inserisci un numero valido con prefisso nazionale.');
+      return;
+    }
+
+    const chatId = `${rawNumber}@c.us`;
+
+    if (name) {
+      await fetch('/api/contacts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: chatId, name })
+      });
+    }
+
+    modal.hide();
+
+    // Carica e apri la chat
+    await refreshChatList();
+    onChatClick(chatId, name || rawNumber);
   });
 }
 

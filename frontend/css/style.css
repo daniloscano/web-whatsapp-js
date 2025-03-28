@@ -138,3 +138,14 @@ body, html {
 .them .message-time {
   justify-content: start !important;
 }
+
+.delete-chat-btn {
+  position: absolute;
+  top: 0;
+  right: 0;
+  font-size: 0.9rem;
+  opacity: 0.7;
+}
+.delete-chat-btn:hover {
+  opacity: 1;
+}

@@ -21,38 +21,33 @@ function loadJSON(filePath) {
 router.get('/', async (req, res) => {
   try {
     const ready = isReady();
-    const client = getClient()
-
-    console.log('✅ isReady:', ready);
-    console.log('🧠 clientInstance:', !!client);
+    const client = getClient();
 
     if (!client || !client.info) {
-      console.log('⏳ client.info non disponibile, client non pronto');
       return res.status(503).json({ error: 'Client non ancora pronto' });
     }
 
     const chats = await client.getChats();
-
-    if (!Array.isArray(chats)) {
-      console.error('⚠️ client.getChats() non ha restituito un array');
-      return res.status(500).json({ error: 'Errore interno: chat non disponibili' });
-    }
-
     const contacts = loadJSON(CONTACTS_PATH);
     const operators = loadJSON(OPERATORS_PATH);
 
+    const activeOnly = req.query.archived === 'false';
+    const archivedOnly = req.query.archived === 'true';
+
     const chatList = await Promise.all(
       chats.map(async (chat) => {
-        const lastMessage = chat.lastMessage;
-        const chatId = chat.id._serialized;
+        const fullChat = await client.getChatById(chat.id._serialized);
+        const lastMessage = fullChat.lastMessage;
+        const chatId = fullChat.id._serialized;
 
-        const savedName = contacts[chatId];
         const name =
-          savedName ||
-          chat.name ||
-          chat.contact?.pushname ||
-          chat.contact?.name ||
-          chat.id.user;
+          contacts[chatId] ||
+          fullChat.name ||
+          fullChat.contact?.pushname ||
+          fullChat.contact?.name ||
+          fullChat.id.user;
+
+        const isArchived = fullChat.archive || false;
 
         return {
           id: chatId,
@@ -62,19 +57,28 @@ router.get('/', async (req, res) => {
           timestamp: lastMessage?.timestamp
             ? new Date(lastMessage.timestamp * 1000)
             : null,
-            unreadCount:
-            req.query.read === chatId ? 0 : (chat.unreadCount || 0)          
+          unreadCount:
+            req.query.read === chatId ? 0 : (fullChat.unreadCount || 0),
+          archived: typeof chat.archived === 'boolean' ? chat.archived : false
         };
       })
     );
 
-    chatList.sort((a, b) => b.timestamp - a.timestamp);
-    res.json(chatList);
+    // 🔍 Filtro dopo aver costruito l'elenco
+    const filteredChats = chatList.filter((chat) => {
+      if (archivedOnly) return chat.archived === true;
+      if (activeOnly) return chat.archived === false;
+      return true; // nessun filtro
+    });
+
+    filteredChats.sort((a, b) => b.timestamp - a.timestamp);
+    res.json(filteredChats);
   } catch (err) {
     console.error('❌ Errore nel recupero delle chat:', err);
     res.status(500).json({ error: 'Errore durante il recupero delle chat' });
   }
 });
+
 
 // ✅ Aggiunto: reset unreadCount
 router.patch('/:id/read', async (req, res) => {
@@ -96,6 +100,24 @@ router.patch('/:id/read', async (req, res) => {
   } catch (err) {
     console.error('Errore reset unread:', err);
     res.status(500).json({ error: 'Errore interno' });
+  }
+});
+
+// ✅ DELETE chat
+router.delete('/:id', async (req, res) => {
+  try {
+    const client = getClient();
+    const chat = await client.getChatById(req.params.id);
+
+    if (chat?.delete) {
+      await chat.delete();
+      return res.json({ success: true, message: 'Chat eliminata' });
+    } else {
+      return res.status(404).json({ error: 'Chat non trovata' });
+    }
+  } catch (err) {
+    console.error('❌ Errore eliminazione chat:', err);
+    res.status(500).json({ error: 'Errore durante l\'eliminazione della chat' });
   }
 });
 
